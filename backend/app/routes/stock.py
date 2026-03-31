@@ -1,8 +1,8 @@
 from fastapi import APIRouter, HTTPException, Query
 import pandas as pd
 
-from app.services.data_fetcher import fetch_stock_data
-from app.services.metrics import add_metrics, summary_metrics
+from ..services.data_fetcher import fetch_stock_data
+from ..services.metrics import add_metrics, summary_metrics
 
 router = APIRouter(prefix="/stocks", tags=["stocks"])
 
@@ -76,20 +76,21 @@ def compare_stocks(
 
     return_1 = 0.0 if first_close_1 == 0 else float((clean_df1["Close"].iloc[-1] - first_close_1) / first_close_1)
     return_2 = 0.0 if first_close_2 == 0 else float((clean_df2["Close"].iloc[-1] - first_close_2) / first_close_2)
-    return_diff = float(return_1 - return_2)
+    return_diff = round(float(return_1 - return_2), 4)
+    return_diff_percentage = abs(return_diff * 100)
 
     symbol1_upper = symbol1.upper()
     symbol2_upper = symbol2.upper()
 
     if return_1 > return_2:
         winner = symbol1_upper
-        insight = f"{symbol1_upper} outperformed {symbol2_upper} by {abs(return_diff):.4f} return points over the selected period."
+        insight = f"{symbol1_upper} outperformed {symbol2_upper} by {return_diff_percentage:.2f}% over the selected period"
     elif return_2 > return_1:
         winner = symbol2_upper
-        insight = f"{symbol2_upper} outperformed {symbol1_upper} by {abs(return_diff):.4f} return points over the selected period."
+        insight = f"{symbol2_upper} outperformed {symbol1_upper} by {return_diff_percentage:.2f}% over the selected period"
     else:
         winner = "TIE"
-        insight = f"{symbol1_upper} and {symbol2_upper} delivered similar returns over the selected period."
+        insight = f"{symbol1_upper} and {symbol2_upper} performed equally over the selected period"
 
     return {
         "symbol1": symbol1_upper,

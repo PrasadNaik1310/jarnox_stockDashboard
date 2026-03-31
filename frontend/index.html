@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stock Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-slate-100 text-slate-800">
+  <div class="min-h-screen flex">
+    <aside class="w-full md:w-72 bg-slate-900 text-slate-100 p-5 md:p-6">
+      <h1 class="text-xl font-semibold tracking-wide">Stock Dashboard</h1>
+      <p class="text-sm text-slate-400 mt-1">NSE Intelligence View</p>
+
+      <div class="mt-6">
+        <h2 class="text-sm uppercase tracking-wider text-slate-400 mb-3">Companies</h2>
+        <ul id="companyList" class="space-y-2"></ul>
+      </div>
+    </aside>
+
+    <main class="flex-1 p-4 md:p-8 space-y-6">
+      <div id="errorBox" class="hidden rounded-lg border border-red-200 bg-red-50 text-red-700 px-4 py-3 text-sm"></div>
+
+      <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 id="chartTitle" class="text-lg md:text-xl font-semibold">Close Price Trend</h2>
+          <span id="selectedSymbol" class="text-xs md:text-sm px-3 py-1 bg-slate-100 rounded-full">-</span>
+        </div>
+        <div class="h-72 md:h-96">
+          <canvas id="priceChart"></canvas>
+        </div>
+      </section>
+
+      <section>
+        <h3 class="text-lg font-semibold mb-3">Summary</h3>
+        <div id="summaryGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></div>
+      </section>
+
+      <section class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 md:p-6">
+        <h3 class="text-lg font-semibold mb-4">Compare Stocks</h3>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+          <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Symbol 1</label>
+            <select id="symbol1" class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"></select>
+          </div>
+          <div>
+            <label class="block text-sm font-medium text-slate-600 mb-1">Symbol 2</label>
+            <select id="symbol2" class="w-full rounded-lg border border-slate-300 px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-slate-300"></select>
+          </div>
+          <div>
+            <button id="compareBtn" class="w-full rounded-lg bg-slate-900 text-white px-4 py-2 font-medium hover:bg-slate-800">Compare</button>
+          </div>
+        </div>
+
+        <div id="compareResult" class="mt-4 hidden rounded-lg border border-slate-200 bg-slate-50 p-4">
+          <p class="text-sm text-slate-600">Winner</p>
+          <p id="compareWinner" class="text-xl font-semibold mt-1">-</p>
+          <p id="compareInsight" class="text-sm text-slate-700 mt-2">-</p>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const API_BASE = "http://127.0.0.1:8000";
+    const API_PREFIXES = ["/stocks", ""];
+
+    const companyListEl = document.getElementById("companyList");
+    const summaryGridEl = document.getElementById("summaryGrid");
+    const errorBoxEl = document.getElementById("errorBox");
+    const symbol1El = document.getElementById("symbol1");
+    const symbol2El = document.getElementById("symbol2");
+    const compareBtnEl = document.getElementById("compareBtn");
+    const compareResultEl = document.getElementById("compareResult");
+    const compareWinnerEl = document.getElementById("compareWinner");
+    const compareInsightEl = document.getElementById("compareInsight");
+    const chartTitleEl = document.getElementById("chartTitle");
+    const selectedSymbolEl = document.getElementById("selectedSymbol");
+
+    let chartInstance = null;
+    let selectedSymbol = null;
+    let companies = [];
+
+    function showError(message) {
+      errorBoxEl.textContent = message;
+      errorBoxEl.classList.remove("hidden");
+    }
+
+    function clearError() {
+      errorBoxEl.textContent = "";
+      errorBoxEl.classList.add("hidden");
+    }
+
+    function formatValue(value, decimals = 4) {
+      if (value === null || value === undefined) return "-";
+      const num = Number(value);
+      if (Number.isNaN(num) || !Number.isFinite(num)) return "-";
+      return num.toFixed(decimals);
+    }
+
+    async function fetchWithFallback(path) {
+      let lastError = null;
+
+      for (const prefix of API_PREFIXES) {
+        const url = `${API_BASE}${prefix}${path}`;
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            lastError = new Error(`HTTP ${response.status}`);
+            continue;
+          }
+          return await response.json();
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      throw lastError || new Error("Request failed");
+    }
+
+    function renderCompanyList() {
+      companyListEl.innerHTML = "";
+
+      companies.forEach((symbol) => {
+        const li = document.createElement("li");
+        const button = document.createElement("button");
+        const isActive = selectedSymbol === symbol;
+
+        button.type = "button";
+        button.textContent = symbol;
+        button.className = `w-full text-left px-3 py-2 rounded-lg text-sm font-medium border ${
+          isActive
+            ? "bg-slate-100 text-slate-900 border-slate-200"
+            : "bg-slate-800 text-slate-100 border-slate-700 hover:bg-slate-700"
+        }`;
+        button.addEventListener("click", () => loadCompany(symbol));
+
+        li.appendChild(button);
+        companyListEl.appendChild(li);
+      });
+    }
+
+    function renderSummary(summary) {
+      const cards = [
+        { key: "52_week_high", label: "52 Week High", value: formatValue(summary?.["52_week_high"], 2) },
+        { key: "52_week_low", label: "52 Week Low", value: formatValue(summary?.["52_week_low"], 2) },
+        { key: "avg_close", label: "Avg Close", value: formatValue(summary?.["avg_close"], 2) },
+        { key: "volatility", label: "Volatility", value: formatValue(summary?.["volatility"], 4) },
+        { key: "trend_score", label: "Trend Score", value: formatValue(summary?.["trend_score"], 4) },
+        { key: "health_score", label: "Health Score", value: formatValue(summary?.["health_score"], 4) },
+      ];
+
+      summaryGridEl.innerHTML = "";
+
+      cards.forEach((card) => {
+        const el = document.createElement("div");
+        el.className = "bg-white rounded-xl border border-slate-200 shadow-sm p-4";
+        el.innerHTML = `
+          <p class="text-xs uppercase tracking-wide text-slate-500">${card.label}</p>
+          <p class="text-2xl font-semibold mt-2">${card.value}</p>
+        `;
+        summaryGridEl.appendChild(el);
+      });
+
+      const insight = summary?.insight || "-";
+      const insightCard = document.createElement("div");
+      insightCard.className = "bg-emerald-50 rounded-xl border border-emerald-200 p-4 sm:col-span-2 lg:col-span-2";
+      insightCard.innerHTML = `
+        <p class="text-xs uppercase tracking-wide text-emerald-700">Insight</p>
+        <p class="text-base font-semibold text-emerald-900 mt-2">${insight}</p>
+      `;
+      summaryGridEl.appendChild(insightCard);
+    }
+
+    function renderChart(symbol, points) {
+      const labels = points.map((row) => row.Date || "-");
+      const closes = points.map((row) => {
+        const value = Number(row.Close);
+        return Number.isFinite(value) ? value : null;
+      });
+
+      if (chartInstance) {
+        chartInstance.destroy();
+      }
+
+      const ctx = document.getElementById("priceChart").getContext("2d");
+      chartInstance = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            {
+              label: `${symbol} Close`,
+              data: closes,
+              borderColor: "#0f172a",
+              backgroundColor: "rgba(15, 23, 42, 0.1)",
+              borderWidth: 2,
+              fill: true,
+              tension: 0.25,
+              pointRadius: 0,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: true,
+            },
+          },
+          scales: {
+            x: {
+              ticks: { maxTicksLimit: 8 },
+            },
+            y: {
+              title: {
+                display: true,
+                text: "Close",
+              },
+            },
+          },
+        },
+      });
+    }
+
+    async function loadCompanies() {
+      const payload = await fetchWithFallback("/companies");
+      companies = Array.isArray(payload?.companies) ? payload.companies : [];
+
+      symbol1El.innerHTML = "";
+      symbol2El.innerHTML = "";
+
+      companies.forEach((symbol, index) => {
+        const option1 = document.createElement("option");
+        option1.value = symbol;
+        option1.textContent = symbol;
+        symbol1El.appendChild(option1);
+
+        const option2 = document.createElement("option");
+        option2.value = symbol;
+        option2.textContent = symbol;
+        symbol2El.appendChild(option2);
+
+        if (index === 0) symbol1El.value = symbol;
+        if (index === 1) symbol2El.value = symbol;
+      });
+
+      if (companies.length && !selectedSymbol) {
+        selectedSymbol = companies[0];
+      }
+
+      renderCompanyList();
+    }
+
+    async function loadCompany(symbol) {
+      clearError();
+      selectedSymbol = symbol;
+      renderCompanyList();
+      selectedSymbolEl.textContent = symbol;
+      chartTitleEl.textContent = `${symbol} Close Price Trend`;
+
+      try {
+        const [dataPayload, summaryPayload] = await Promise.all([
+          fetchWithFallback(`/data/${encodeURIComponent(symbol)}`),
+          fetchWithFallback(`/summary/${encodeURIComponent(symbol)}`),
+        ]);
+
+        const points = Array.isArray(dataPayload?.data) ? dataPayload.data : [];
+        renderChart(symbol, points);
+        renderSummary(summaryPayload?.summary || null);
+      } catch (error) {
+        showError(`Failed to load ${symbol} data. Please try again.`);
+      }
+    }
+
+    async function compareStocks() {
+      clearError();
+      compareResultEl.classList.add("hidden");
+
+      const sym1 = symbol1El.value;
+      const sym2 = symbol2El.value;
+
+      if (!sym1 || !sym2) {
+        showError("Please select both symbols.");
+        return;
+      }
+
+      try {
+        const params = new URLSearchParams({ symbol1: sym1, symbol2: sym2 });
+        const payload = await fetchWithFallback(`/compare?${params.toString()}`);
+
+        compareWinnerEl.textContent = payload?.winner || "-";
+        compareInsightEl.textContent = payload?.insight || "-";
+        compareResultEl.classList.remove("hidden");
+      } catch (error) {
+        showError("Failed to compare stocks. Please try again.");
+      }
+    }
+
+    compareBtnEl.addEventListener("click", compareStocks);
+
+    async function init() {
+      try {
+        await loadCompanies();
+        if (selectedSymbol) {
+          await loadCompany(selectedSymbol);
+        }
+      } catch (error) {
+        showError("Failed to initialize dashboard. Check backend availability.");
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>

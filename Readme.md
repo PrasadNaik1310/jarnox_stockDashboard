@@ -149,7 +149,7 @@ https://stock-dashboard-api.onrender.com/stocks
 1. Connect GitHub repo to Render
 2. Render auto-detects render.yaml
 3. Environment variables:
-   - ALLOWED_ORIGINS: https://jarnox-stock-dashboard.vercel.app,
+   - ALLOWED_ORIGINS: https://jarnox-stock-dashboard.vercel.app
 4. Deploy from main branch
 
 ### Frontend (Vercel)

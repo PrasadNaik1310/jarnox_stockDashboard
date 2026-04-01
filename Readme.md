@@ -108,22 +108,55 @@ health_score = (trend * 0.6) + ((1 - volatility) * 0.4)
 
 ---
 
-##  Setup Instructions
+##  Setup Instructions (Local Development)
 
 1. Clone the repository  
 git clone https://github.com/PrasadNaik1310/jarnox_stockDashboard  
 cd jarnox-stock-dashboard  
 
 2. Install dependencies  
-
+cd backend
 pip install -r requirements.txt  
 
 3. Run backend server  
 uvicorn backend.app.main:app --reload  
 
-4. Open frontend 
-cd frontend 
-Open frontend/index.html in browser  
+4. Serve frontend (new terminal)
+cd frontend
+python3 -m http.server 5500
+
+5. Open browser
+http://localhost:5500
+
+---
+
+##  Live Deployment
+
+**Backend (Render):**  
+https://stock-dashboard-api.onrender.com
+
+**Frontend (Vercel):**  
+https://jarnox-stock-dashboard.vercel.app
+
+**API Base URL (Production):**  
+https://stock-dashboard-api.onrender.com/stocks
+
+---
+
+##  Deployment Setup
+
+### Backend (Render)
+1. Connect GitHub repo to Render
+2. Render auto-detects render.yaml
+3. Environment variables:
+   - ALLOWED_ORIGINS: https://jarnox-stock-dashboard.vercel.app,
+4. Deploy from main branch
+
+### Frontend (Vercel)
+1. Connect GitHub repo to Vercel
+2. Vercel auto-detects frontend/ folder
+3. Deploy from main branch
+4. Frontend auto-detects Render API URL based on domain
 
 ---
 

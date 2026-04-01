@@ -8,7 +8,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend/ .
 
-ENV ALLOWED_ORIGINS="https://stock-dashboard.vercel.app,http://localhost:5500"
+ENV ALLOWED_ORIGINS="https://jarnox-stock-dashboard.vercel.app"
 
 EXPOSE 8000
 

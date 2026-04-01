@@ -3,6 +3,8 @@ Stock Data Intelligence Dashboard — Turning Market Data into Actionable Insigh
 A mini financial analytics platform that transforms raw stock market data into meaningful insights through a clean backend system and interactive dashboard.
 
 ---
+## Video Demo
+[Watch the demo](https://drive.google.com/file/d/13wP4HsnewO_7tWpjPc_NM9Pl5oiEUSf2/view?usp=sharing)
 
 ##  Problem Statement
 

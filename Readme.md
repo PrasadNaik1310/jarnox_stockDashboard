@@ -129,7 +129,7 @@ Open frontend/index.html in browser
 
 ##  Screenshots
 - Dashboard view  
-./screenshot/dashboard.png
+./screenshot/dashboard.png![alt text](dashboard.png)
 - Chart  
 ./screeshot/chart.png![alt text](chart.png)
 - Compare feature  

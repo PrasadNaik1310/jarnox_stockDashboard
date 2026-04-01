@@ -328,25 +328,27 @@
       const requestId = ++activeCompanyRequestId;
       setLoading(true);
 
-      try {
-        const [dataPayload, summaryPayload] = await Promise.all([
-          fetchWithFallback(`/data/${encodeURIComponent(symbol)}`),
-          fetchWithFallback(`/summary/${encodeURIComponent(symbol)}`),
-        ]);
+      setTimeout(async () => {
+        try {
+          const [dataPayload, summaryPayload] = await Promise.all([
+            fetchWithFallback(`/data/${encodeURIComponent(symbol)}`),
+            fetchWithFallback(`/summary/${encodeURIComponent(symbol)}`),
+          ]);
 
-        if (requestId !== activeCompanyRequestId) return;
+          if (requestId !== activeCompanyRequestId) return;
 
-        const points = Array.isArray(dataPayload?.data) ? dataPayload.data : [];
-        renderChart(symbol, points);
-        renderSummary(summaryPayload?.summary || null);
-      } catch (error) {
-        if (requestId !== activeCompanyRequestId) return;
-        showError("Server is still waking up. Please try again in a few seconds.");
-      } finally {
-        if (requestId === activeCompanyRequestId) {
-          setLoading(false);
+          const points = Array.isArray(dataPayload?.data) ? dataPayload.data : [];
+          renderChart(symbol, points);
+          renderSummary(summaryPayload?.summary || null);
+        } catch (error) {
+          if (requestId !== activeCompanyRequestId) return;
+          showError("Server is still waking up. Please try again in a few seconds.");
+        } finally {
+          if (requestId === activeCompanyRequestId) {
+            setLoading(false);
+          }
         }
-      }
+      }, 0);
     }
 
     async function compareStocks() {
@@ -362,18 +364,20 @@
       }
 
       setLoading(true);
-      try {
-        const params = new URLSearchParams({ symbol1: sym1, symbol2: sym2 });
-        const payload = await fetchWithFallback(`/compare?${params.toString()}`);
+      setTimeout(async () => {
+        try {
+          const params = new URLSearchParams({ symbol1: sym1, symbol2: sym2 });
+          const payload = await fetchWithFallback(`/compare?${params.toString()}`);
 
-        compareWinnerEl.textContent = payload?.winner || "-";
-        compareInsightEl.textContent = payload?.insight || "-";
-        compareResultEl.classList.remove("hidden");
-      } catch (error) {
-        showError("Server is still waking up. Please try again in a few seconds.");
-      } finally {
-        setLoading(false);
-      }
+          compareWinnerEl.textContent = payload?.winner || "-";
+          compareInsightEl.textContent = payload?.insight || "-";
+          compareResultEl.classList.remove("hidden");
+        } catch (error) {
+          showError("Server is still waking up. Please try again in a few seconds.");
+        } finally {
+          setLoading(false);
+        }
+      }, 0);
     }
 
     compareBtnEl.addEventListener("click", compareStocks);

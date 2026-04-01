@@ -1,4 +1,4 @@
-# Stock Data Intelligence Dashboard
+Stock Data Intelligence Dashboard — Turning Market Data into Actionable Insights
 
 A mini financial analytics platform that transforms raw stock market data into meaningful insights through a clean backend system and interactive dashboard.
 
@@ -13,6 +13,10 @@ This project focuses on:
 - Providing a simple interface to **analyze stock performance**
 - Demonstrating a **data → processing → insight → visualization pipeline**
 
+This enables users to:
+- Quickly understand stock performance without digging into raw data  
+- Compare companies efficiently  
+- Make better data-driven observations  
 ---
 
 ##  Features
@@ -43,6 +47,7 @@ FastAPI Backend (REST APIs)
 ↓
 Frontend Dashboard (HTML + Tailwind + Chart.js)
 
+The system separates data fetching, transformation, and presentation layers to ensure modularity, clarity, and scalability.
 ---
 
 ##  API Endpoints
@@ -76,14 +81,14 @@ Returns:
 
 ##  Custom Insights
 
-### 🔹 Trend Score
+###  Trend Score
 Measures overall price movement:
 (last_close - first_close) / first_close
 
-### 🔹 Volatility
+### Volatility
 Measures risk using standard deviation of returns.
 
-### 🔹 Stock Health Score
+###  Stock Health Score
 Combines trend and risk:
 health_score = (trend * 0.6) + ((1 - volatility) * 0.4)
 
@@ -110,7 +115,7 @@ git clone https://github.com/PrasadNaik1310/jarnox_stockDashboard
 cd jarnox-stock-dashboard  
 
 2. Install dependencies  
-cd backend
+
 pip install -r requirements.txt  
 
 3. Run backend server  
@@ -123,19 +128,19 @@ Open frontend/index.html in browser
 ---
 
 ##  Screenshots
-
-Add screenshots of:
 - Dashboard view  
+./screenshot/dashboard.png
 - Chart  
+./screeshot/chart.png![alt text](chart.png)
 - Compare feature  
+./screenshot/compareFeature.png![alt text](compareFeature.png)
 
 ---
 
 ##  Future Improvements
 
-- Real-time stock data integration  
+- Real-time stock data integration (using yfinance for now).  
 - Machine learning-based price prediction  
-- Deployment (Render / Vercel)  
 - Caching for performance optimization  
 - Authentication & user watchlists  
 
@@ -158,3 +163,7 @@ It emphasizes:
 - Clean API design  
 - Data processing pipelines  
 - Insight generation over raw data  
+
+
+
+It focuses not just on data retrieval, but on interpretation — which is critical in real-world financial systems.

@@ -80,10 +80,24 @@
     const compareInsightEl = document.getElementById("compareInsight");
     const chartTitleEl = document.getElementById("chartTitle");
     const selectedSymbolEl = document.getElementById("selectedSymbol");
+    const chartCanvasEl = document.getElementById("priceChart");
 
     let chartInstance = null;
     let selectedSymbol = null;
     let companies = [];
+    let activeCompanyRequestId = 0;
+
+    const RETRY_DELAY_MS = 10000;
+    const REQUEST_TIMEOUT_MS = 25000;
+
+    const loadingEl = document.createElement("div");
+    loadingEl.id = "loadingState";
+    loadingEl.className = "hidden mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800 flex items-center gap-2";
+    loadingEl.innerHTML = `
+      <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-amber-500 border-t-transparent"></span>
+      <span>Waking up server... please wait</span>
+    `;
+    chartCanvasEl.parentElement.insertAdjacentElement("beforebegin", loadingEl);
 
     function showError(message) {
       errorBoxEl.textContent = message;
@@ -95,6 +109,30 @@
       errorBoxEl.classList.add("hidden");
     }
 
+    function sleep(ms) {
+      return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    function setControlsDisabled(disabled) {
+      compareBtnEl.disabled = disabled;
+      symbol1El.disabled = disabled;
+      symbol2El.disabled = disabled;
+
+      const companyButtons = companyListEl.querySelectorAll("button");
+      companyButtons.forEach((button) => {
+        button.disabled = disabled;
+      });
+    }
+
+    function setLoading(isLoading) {
+      if (isLoading) {
+        loadingEl.classList.remove("hidden");
+      } else {
+        loadingEl.classList.add("hidden");
+      }
+      setControlsDisabled(isLoading);
+    }
+
     function formatValue(value, decimals = 4) {
       if (value === null || value === undefined) return "-";
       const num = Number(value);
@@ -102,18 +140,42 @@
       return num.toFixed(decimals);
     }
 
-    async function fetchWithFallback(path) {
+    async function fetchWithRetry(url, retries = 3) {
+      let lastError = null;
+
+      for (let attempt = 1; attempt <= retries; attempt += 1) {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+        try {
+          const response = await fetch(url, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          return await response.json();
+        } catch (error) {
+          clearTimeout(timeoutId);
+          lastError = error;
+
+          if (attempt < retries) {
+            await sleep(RETRY_DELAY_MS);
+          }
+        }
+      }
+
+      throw lastError || new Error("Request failed");
+    }
+
+    async function fetchWithFallback(path, retries = 3) {
       let lastError = null;
 
       for (const prefix of API_PREFIXES) {
         const url = `${API_BASE}${prefix}${path}`;
         try {
-          const response = await fetch(url);
-          if (!response.ok) {
-            lastError = new Error(`HTTP ${response.status}`);
-            continue;
-          }
-          return await response.json();
+          return await fetchWithRetry(url, retries);
         } catch (error) {
           lastError = error;
         }
@@ -263,6 +325,8 @@
       renderCompanyList();
       selectedSymbolEl.textContent = symbol;
       chartTitleEl.textContent = `${symbol} Close Price Trend`;
+      const requestId = ++activeCompanyRequestId;
+      setLoading(true);
 
       try {
         const [dataPayload, summaryPayload] = await Promise.all([
@@ -270,11 +334,18 @@
           fetchWithFallback(`/summary/${encodeURIComponent(symbol)}`),
         ]);
 
+        if (requestId !== activeCompanyRequestId) return;
+
         const points = Array.isArray(dataPayload?.data) ? dataPayload.data : [];
         renderChart(symbol, points);
         renderSummary(summaryPayload?.summary || null);
       } catch (error) {
-        showError(`Failed to load ${symbol} data. Please try again.`);
+        if (requestId !== activeCompanyRequestId) return;
+        showError("Server is still waking up. Please try again in a few seconds.");
+      } finally {
+        if (requestId === activeCompanyRequestId) {
+          setLoading(false);
+        }
       }
     }
 
@@ -290,6 +361,7 @@
         return;
       }
 
+      setLoading(true);
       try {
         const params = new URLSearchParams({ symbol1: sym1, symbol2: sym2 });
         const payload = await fetchWithFallback(`/compare?${params.toString()}`);
@@ -298,7 +370,9 @@
         compareInsightEl.textContent = payload?.insight || "-";
         compareResultEl.classList.remove("hidden");
       } catch (error) {
-        showError("Failed to compare stocks. Please try again.");
+        showError("Server is still waking up. Please try again in a few seconds.");
+      } finally {
+        setLoading(false);
       }
     }
 
